@@ -1,12 +1,25 @@
+/**
+ * @file    queue.h
+ * @author  Pratik Dhulubulu
+ * @brief   Queue Interface Header File.
+ *          This file contains the interface for a generic queue implementation.
+ */
+
 #ifndef QUEUE_H
 #define QUEUE_H
 
 #include <stdint.h>
-#include <stddef.h>
 
 /**
- * @brief Generic queue types.
+ * @section Public Constants and Macro Definitions.
  */
+#define NULL ((void *)0)
+
+/**
+ * @section Public Type Declaration.
+ */
+
+/* Generic queue types. */
 typedef enum
 {
     CAN_HIGH_PRIORITY_QUEUE = 0U,
@@ -15,9 +28,7 @@ typedef enum
     MAX_NUMBER_OF_QUEUES
 } QueueType_e;
 
-/**
- * @brief Queue configuration details.
- */
+/* Queue configuration details for each queue. */
 typedef struct
 {
     uint8_t *start_address;
@@ -25,9 +36,7 @@ typedef struct
     uint16_t message_data_size;
 } QueueDetails_t;
 
-/**
- * @brief Queue runtime information.
- */
+/* Queue runtime information for each queue. */
 typedef struct
 {
     uint16_t write_index;
@@ -36,9 +45,7 @@ typedef struct
     uint8_t overflow;
 } QueueStats_t;
 
-/**
- * @brief Queue status information.
- */
+/* Queue status information for each queue. */
 typedef struct
 {
     uint16_t number_of_elements;
@@ -48,15 +55,17 @@ typedef struct
 } QueueStatus_t;
 
 /**
- * @brief Queue configuration table.
+ * @section Public Data Declaration.
  */
+/* Queue configuration table for all queues. */
 extern const QueueDetails_t QueueDetails[MAX_NUMBER_OF_QUEUES];
 
-/**
- * @brief Queue runtime information table.
- */
+/* Queue runtime information table for all queues. */
 extern QueueStats_t QueueStats[MAX_NUMBER_OF_QUEUES];
 
+/**
+ * @section Public Function Declarations.
+ */
 void queueInit(void);
 uint8_t queueEnqueue(QueueType_e queue_type, const void *message, uint16_t message_size);
 uint8_t queueDequeue(QueueType_e queue_type, void *message, uint16_t message_size);
