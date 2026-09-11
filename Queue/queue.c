@@ -68,16 +68,21 @@ void queueInit(void)
  * @param queue_type The type of the queue to which the element should be added.
  * @param message Pointer to the message to be added to the queue.
  * @param message_size Size of the message to be added.
- * @return 1 if the element was added successfully, 0 otherwise.
+ * @return result 1 if the element was added successfully, 0 otherwise.
  */
 uint8_t queueEnqueue(QueueType_e queue_type, const void *message, uint16_t message_size)
 {
+    uint8_t result = 0U;
     if ((message == NULL) || ((uint32_t)queue_type >= (uint32_t)MAX_NUMBER_OF_QUEUES) || (message_size != QueueDetails[queue_type].message_data_size))
     {
-        return FALSE;
+        result = 0U;
+    }
+    else
+    {
+        result = queueEnqueueData(&QueueDetails[queue_type], &QueueStats[queue_type], message);
     }
 
-    return queueEnqueueData(&QueueDetails[queue_type], &QueueStats[queue_type], message);
+    return result;
 }
 
 /**
@@ -85,61 +90,93 @@ uint8_t queueEnqueue(QueueType_e queue_type, const void *message, uint16_t messa
  * @param queue_type The type of the queue from which the element should be removed.
  * @param message Pointer to the buffer where the dequeued message should be stored.
  * @param message_size Size of the message buffer.
- * @return 1 if the element was removed successfully, 0 otherwise.
+ * @return result 1 if the element was removed successfully, 0 otherwise.
  */
 uint8_t queueDequeue(QueueType_e queue_type, void *message, uint16_t message_size)
 {
+    uint8_t result = 0U;
+
     if ((message == NULL) || ((uint32_t)queue_type >= (uint32_t)MAX_NUMBER_OF_QUEUES) || (message_size != QueueDetails[queue_type].message_data_size))
     {
-        return FALSE;
+        result = 0U;
     }
-    
-    return queueDequeueData(&QueueDetails[queue_type], &QueueStats[queue_type], message);
+    else
+    {
+        result = queueDequeueData(&QueueDetails[queue_type], &QueueStats[queue_type], message);
+    }
+
+    return result;
 }
 
 /**
  * @brief This function checks whether the specified queue is empty.
  * @param queue_type The type of the queue to check.
- * @return 1 if the queue is empty, 0 otherwise.
+ * @return result 1 if the queue is empty, 0 otherwise.
  */
 uint8_t queueIsEmpty(QueueType_e queue_type)
 {
+    uint8_t result = 0U;
+    
     if ((uint32_t)queue_type >= (uint32_t)MAX_NUMBER_OF_QUEUES)
     {
-        return TRUE;
+        result = 0U;
+    }
+    else if (QueueStats[queue_type].count == 0U)
+    {
+        result = 1U;
+    }
+    else
+    {
+        result = 0U;
     }
 
-    return (QueueStats[queue_type].count == 0U) ? TRUE : FALSE;
+    return result;
 }
 
 /**
  * @brief This function checks whether the specified queue is full.
  * @param queue_type The type of the queue to check.
- * @return 1 if the queue is full, 0 otherwise.
+ * @return result 1 if the queue is full, 0 otherwise.
  */
 uint8_t queueIsFull(QueueType_e queue_type)
 {
+    uint8_t result = 0U;
+
     if ((uint32_t)queue_type >= (uint32_t)MAX_NUMBER_OF_QUEUES)
     {
-        return FALSE;
+        result = 0U;
+    }
+    else if (QueueStats[queue_type].count >= QueueDetails[queue_type].queue_size)
+    {
+        result = 1U;
+    }
+    else        
+    {
+        result = 0U;
     }
 
-    return (QueueStats[queue_type].count >= QueueDetails[queue_type].queue_size) ? TRUE : FALSE;
+    return result;
 }
 
 /**
  * @brief This function gets the number of elements currently stored in the queue.
  * @param queue_type The type of the queue for which to get the count.
- * @return The number of elements in the queue.
+ * @return Count The number of elements in the queue.
  */
 uint16_t queueGetCount(QueueType_e queue_type)
 {
+    uint16_t count = 0U;
+
     if ((uint32_t)queue_type >= (uint32_t)MAX_NUMBER_OF_QUEUES)
     {
-        return 0U;
+        count = 0U;
+    }
+    else
+    {
+        count = QueueStats[queue_type].count;
     }
 
-    return QueueStats[queue_type].count;
+    return count;
 }
 
 /**
@@ -150,49 +187,87 @@ uint16_t queueGetCount(QueueType_e queue_type)
  */
 uint8_t queueGetStatus(QueueType_e queue_type, QueueStatus_t *status)
 {
+    uint8_t result = 0U;
+
     if ((status == NULL) || ((uint32_t)queue_type >= (uint32_t)MAX_NUMBER_OF_QUEUES))
     {
-        return 0U;
+        result = 0U;
+    }
+    else
+    {
+        status->number_of_elements = QueueStats[queue_type].count;
+
+        if (QueueStats[queue_type].count >= QueueDetails[queue_type].queue_size)
+        {
+            status->queue_full = 1U;
+        }
+        else
+        {
+            status->queue_full = 0U;
+        }
+
+        if (QueueStats[queue_type].count == 0U)
+        {
+            status->queue_empty = 1U;
+        }
+        else
+        {
+            status->queue_empty = 0U;
+        }
+
+        if (QueueStats[queue_type].overflow == 1U)
+        {
+            status->queue_overflow = 1U;
+        }
+        else
+        {
+            status->queue_overflow = 0U;
+        }
+
+        result = 1U;
     }
 
-    status->number_of_elements = QueueStats[queue_type].count;
-    status->queue_full = (QueueStats[queue_type].count >= QueueDetails[queue_type].queue_size) ? 1U : 0U;
-    status->queue_empty = (QueueStats[queue_type].count == 0U) ? 1U : 0U;
-    status->queue_overflow = QueueStats[queue_type].overflow;
 
     return 1U;
 }
 
 /**
+    @section Private Function Definations.
+*/
+/**
  * @brief This function enqueues data into the queue.
  * @param queue_details_ptr Pointer to the queue details structure.
  * @param queue_ptr Pointer to the queue statistics structure.
  * @param message Pointer to the message to be enqueued.
- * @return 1 if the message was enqueued successfully, 0 otherwise.
+ * @return result 1 if the message was enqueued successfully, 0 otherwise.
  */
 static uint8_t queueEnqueueData(const QueueDetails_t *queue_details_ptr, QueueStats_t *queue_ptr, const void *message)
 {
     uint8_t *queue_address;
+    uint8_t result = 0U;
 
     if (queue_ptr->count >= queue_details_ptr->queue_size)
     {
         queue_ptr->overflow = 1U;
-        return 0U;
+        result = 0U;
     }
-
-    queue_address = queue_details_ptr->start_address;
-    queue_address = &queue_address[((uint32_t)queue_ptr->write_index * (uint32_t)queue_details_ptr->message_data_size)];
-    queueCopyData(queue_address, (const uint8_t *)message, queue_details_ptr->message_data_size);
-    queue_ptr->write_index++;
-
-    if (queue_ptr->write_index >= queue_details_ptr->queue_size)
+    else
     {
-        queue_ptr->write_index = 0U;
+        queue_address = queue_details_ptr->start_address;
+        queue_address = &queue_address[((uint32_t)queue_ptr->write_index * (uint32_t)queue_details_ptr->message_data_size)];
+        queueCopyData(queue_address, (const uint8_t *)message, queue_details_ptr->message_data_size);
+        queue_ptr->write_index++;
+
+        if (queue_ptr->write_index >= queue_details_ptr->queue_size)
+        {
+            queue_ptr->write_index = 0U;
+        }
+
+        queue_ptr->count++;
+        result = 1U;
     }
 
-    queue_ptr->count++;
-
-    return 1U;
+    return result;
 }
 
 /**
@@ -200,30 +275,34 @@ static uint8_t queueEnqueueData(const QueueDetails_t *queue_details_ptr, QueueSt
  * @param queue_details_ptr Pointer to the queue details structure.
  * @param queue_ptr Pointer to the queue statistics structure.
  * @param message Pointer to the buffer where the dequeued message should be stored.
- * @return 1 if the message was dequeued successfully, 0 otherwise.
+ * @return result 1 if the message was dequeued successfully, 0 otherwise.
  */
 static uint8_t queueDequeueData(const QueueDetails_t *queue_details_ptr, QueueStats_t *queue_ptr, void *message)
 {
     uint8_t *queue_address;
+    uint8_t result = 0U;
 
     if (queue_ptr->count == 0U)
     {
-        return 0U;
+        result = 0U;
     }
-
-    queue_address = queue_details_ptr->start_address;
-    queue_address = &queue_address[((uint32_t)queue_ptr->read_index * (uint32_t)queue_details_ptr->message_data_size)];
-    queueCopyData((uint8_t *)message, queue_address, queue_details_ptr->message_data_size);
-    queue_ptr->read_index++;
-
-    if (queue_ptr->read_index >= queue_details_ptr->queue_size)
+    else
     {
-        queue_ptr->read_index = 0U;
+        queue_address = queue_details_ptr->start_address;
+        queue_address = &queue_address[((uint32_t)queue_ptr->read_index * (uint32_t)queue_details_ptr->message_data_size)];
+        queueCopyData((uint8_t *)message, queue_address, queue_details_ptr->message_data_size);
+        queue_ptr->read_index++;
+
+        if (queue_ptr->read_index >= queue_details_ptr->queue_size)
+        {
+            queue_ptr->read_index = 0U;
+        }
+
+        queue_ptr->count--;
+        result = 1U;
     }
 
-    queue_ptr->count--;
-
-    return 1U;
+    return result;
 }
 
 /**
